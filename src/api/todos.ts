@@ -1,10 +1,9 @@
-import { Todo } from '../types/Todo';
-import { client } from '../utils/fetchClient';
+const API_URL = 'https://mate-academy.github.io/fe-students-api/todos';
 
-export const USER_ID = 0;
-
-export const getTodos = () => {
-  return client.get<Todo[]>(`/todos?userId=${USER_ID}`);
+export const loadTodos = async (userId: number) => {
+    const response = await fetch(`${API_URL}?userId=${userId}`);
+    if (!response.ok) {
+        throw new Error('Failed to load todos');
+    }
+    return await response.json();
 };
-
-// Add more methods here
