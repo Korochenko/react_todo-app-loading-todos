@@ -2,7 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { loadTodos } from './api/todos';
 import { Todo } from './types/Todo';
 
-const Notification: React.FC<{ message: string | null; onClose: () => void }> = ({ message, onClose }) => (
+const Notification: React.FC<{
+  message: string | null;
+  onClose: () => void;
+}> = ({ message, onClose }) => (
   <div className={`notification${message ? '' : ' hidden'}`}>
     {message && (
       <>
@@ -13,10 +16,10 @@ const Notification: React.FC<{ message: string | null; onClose: () => void }> = 
   </div>
 );
 
-const TodoFilter: React.FC<{ selectedFilter: string; onFilterChange: (filter: string) => void }> = ({
-  selectedFilter,
-  onFilterChange,
-}) => (
+const TodoFilter: React.FC<{
+  selectedFilter: string;
+  onFilterChange: (filter: string) => void;
+}> = ({ selectedFilter, onFilterChange }) => (
   <div className="todo-filter">
     {['All', 'Active', 'Completed'].map(filter => (
       <button
@@ -51,7 +54,8 @@ export const App: React.FC = () => {
     const fetchTodos = async () => {
       setLoading(true);
       try {
-        const loadedTodos = await loadTodos(3442); 
+        const loadedTodos = await loadTodos(3442);
+
         setTodos(loadedTodos);
       } catch (err) {
         setError('Failed to load todos');
@@ -69,6 +73,7 @@ export const App: React.FC = () => {
         setError(null);
       }, 3000);
     }
+
     return () => {
       if (errorTimeoutRef.current) {
         clearTimeout(errorTimeoutRef.current);
@@ -77,8 +82,14 @@ export const App: React.FC = () => {
   }, [error]);
 
   const filteredTodos = todos.filter(todo => {
-    if (filter === 'Active') return !todo.completed;
-    if (filter === 'Completed') return todo.completed;
+    if (filter === 'Active') {
+      return !todo.completed;
+    }
+
+    if (filter === 'Completed') {
+      return todo.completed;
+    }
+
     return true;
   });
 
@@ -97,11 +108,7 @@ export const App: React.FC = () => {
       {loading ? (
         <div>Loading...</div>
       ) : (
-        <>
-          {todos.length > 0 && (
-            <TodoList todos={filteredTodos} />
-          )}
-        </>
+        <>{todos.length > 0 && <TodoList todos={filteredTodos} />}</>
       )}
     </div>
   );
