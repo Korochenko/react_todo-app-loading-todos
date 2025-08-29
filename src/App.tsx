@@ -9,7 +9,9 @@ export const App: React.FC = () => {
   const [todos, setTodos] = React.useState<Todo[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>('');
-  const [filterByStatus, setFilterByStatus] = React.useState<'all' | 'active' | 'completed'>('all');
+  const [filterByStatus, setFilterByStatus] = React.useState<
+  'all' | 'active' | 'completed'
+  >('all');
   const [showNotification, setShowNotification] = React.useState(false);
 
   const activeTodosCount = todos.filter(todo => !todo.completed).length;
