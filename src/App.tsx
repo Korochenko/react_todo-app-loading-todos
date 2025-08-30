@@ -1,37 +1,98 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
 /* eslint-disable jsx-a11y/control-has-associated-label */
-import React from 'react';
+import React, { useState } from 'react';
 import { UserWarning } from './UserWarning';
-import { getTodos, USER_ID } from './api/todos';
+import * as todoService from './api/todos';
 import { Todo } from './types/Todo';
 
+function useLocalStorage<T>(
+  key: string,
+  startValue: T,
+): [T, (value: T | ((prev: T) => T)) => void] {
+  const [value, setValue] = useState(() => {
+    const data = localStorage.getItem(key);
+
+    if (data === null) {
+      return startValue;
+    }
+
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      localStorage.removeItem(key);
+
+      return startValue;
+    }
+  });
+
+  const save = (newValue: T | ((prev: T) => T)) => {
+    let valueToStore: T;
+
+    if (typeof newValue === 'function') {
+      valueToStore = (newValue as (prev: T) => T)(value);
+    } else {
+      valueToStore = newValue;
+    }
+
+    localStorage.setItem(key, JSON.stringify(valueToStore));
+    setValue(valueToStore);
+  };
+
+  return [value, save];
+}
+
 export const App: React.FC = () => {
-  const [todos, setTodos] = React.useState<Todo[]>([]);
+  const [todos, setTodos] = useLocalStorage<Todo[]>('todo', []);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>('');
   const [filterByStatus, setFilterByStatus] = React.useState<
-  'all' | 'active' | 'completed'
+    'all' | 'active' | 'completed'
   >('all');
+  const [code, setCode] = React.useState('');
   const [showNotification, setShowNotification] = React.useState(false);
 
   const activeTodosCount = todos.filter(todo => !todo.completed).length;
 
   React.useEffect(() => {
-    setLoading(true);
-    setShowNotification(false);
+    if (todos.length === 0) {
+      setLoading(true);
+      setShowNotification(false);
 
-    setTimeout(() => {
-      getTodos()
-        .then(setTodos)
-        .catch(() => {
-          setError('Unable to load todos');
-          setShowNotification(true);
-          setTimeout(() => setShowNotification(false), 3000);
-        })
+      setTimeout(() => {
+        todoService
+          .getTodos()
+          .then(setTodos)
+          .catch(() => {
+            setError('Unable to load todos');
+            setShowNotification(true);
+            setTimeout(() => setShowNotification(false), 3000);
+          })
 
-        .finally(() => setLoading(false));
-    }, 100);
+          .finally(() => setLoading(false));
+      }, 100);
+    }
   }, []);
+
+  const handleCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCode(event.target.value);
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (code.trim() === '') {
+      return;
+    }
+
+    const newTodo: Todo = {
+      userId: todoService.USER_ID,
+      id: todos.length ? Math.max(...todos.map(todo => todo.id)) + 1 : 1,
+      title: code.trim(),
+      completed: false,
+    };
+
+    setTodos(prev => [...prev, newTodo]);
+    setCode('');
+  };
 
   function clearTodos() {
     setTodos(prev => prev.filter(todo => !todo.completed));
@@ -53,13 +114,44 @@ export const App: React.FC = () => {
     setShowNotification(false);
   }
 
-  if (!USER_ID) {
+  function deleteTodo(todoId: number) {
+    todoService.deleteTodo(todoId);
+    setTodos(prev => prev.filter(todo => todo.id !== todoId));
+  }
+
+  if (!todoService.USER_ID) {
     return <UserWarning />;
+  }
+
+  function toggleTodo(todoId: number) {
+    setTodos(prev =>
+      prev.map(todo => {
+        if (todo.id === todoId) {
+          return { ...todo, completed: !todo.completed };
+        }
+
+        return todo;
+      }),
+    );
+  }
+
+  function toggleAllTodos() {
+    const shouldComplete = activeTodosCount > 0;
+
+    setTodos(prev =>
+      prev.map(todo => ({ ...todo, completed: shouldComplete })),
+    );
   }
 
   return (
     <div className="todoapp">
       <h1 className="todoapp__title">todos</h1>
+
+      {loading && (
+        <div className="Loader">
+          <div className="Loader__content" />
+        </div>
+      )}
 
       {!loading && (
         <div className="todoapp__content">
@@ -67,17 +159,24 @@ export const App: React.FC = () => {
             {/* this button should have `active` class only if all todos are completed */}
             <button
               type="button"
-              className="todoapp__toggle-all active"
+              className={
+                'todoapp__toggle-all' +
+                (activeTodosCount !== 0 ? ' active' : '')
+              }
               data-cy="ToggleAllButton"
+              onClick={toggleAllTodos}
             />
 
             {/* Add a todo on form submit */}
-            <form>
+            <form onSubmit={handleSubmit}>
               <input
                 data-cy="NewTodoField"
                 type="text"
                 className="todoapp__new-todo"
                 placeholder="What needs to be done?"
+                autoFocus
+                onChange={handleCodeChange}
+                value={code}
               />
             </form>
           </header>
@@ -96,6 +195,7 @@ export const App: React.FC = () => {
                     type="checkbox"
                     className="todo__status"
                     checked={todo.completed}
+                    onChange={() => toggleTodo(todo.id)}
                   />
                 </label>
 
@@ -106,10 +206,15 @@ export const App: React.FC = () => {
                   type="button"
                   className="todo__remove"
                   data-cy="TodoDelete"
+                  onClick={() => deleteTodo(todo.id)}
                 >
                   {' '}
                   ×{' '}
                 </button>
+                <div data-cy="TodoLoader" className="modal overlay">
+                  <div className="modal-background has-background-white-ter" />
+                  <div className="loader" />
+                </div>
               </div>
             ))}
           </section>
