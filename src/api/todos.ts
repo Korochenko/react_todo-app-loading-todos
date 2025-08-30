@@ -11,4 +11,3 @@ export const deleteTodo = (todoId: number) => {
   return client.delete(`/todos/${todoId}`);
 };
 
-// Add more methods here
